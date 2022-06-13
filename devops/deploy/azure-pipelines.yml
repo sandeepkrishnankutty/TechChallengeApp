@@ -1,0 +1,107 @@
+name: $(date:yyyyMMdd)$(rev:.r)
+
+variables:
+- group: techchallenge
+
+stages:
+- stage: Build
+  jobs:
+  - job: build
+    displayName: build
+    pool:
+      vmImage: ubuntu-20.04
+    steps:
+    - checkout: self
+    - task: replacetokens@5
+      displayName: Replace tokens in **/conf.toml
+      inputs:
+        targetFiles: '**/conf.toml'
+    - task: Docker@0
+      displayName: Build an image
+      inputs:
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Visual Studio Premium with MSDN'
+        azureContainerRegistry: '{"loginServer":"spkacr.azurecr.io", "id" : "/subscriptions/1cbabf83-b4d2-45b5-b160-540a8298f25d/resourceGroups/spkwebappcontainerrg/providers/Microsoft.ContainerRegistry/registries/spkacr"}'
+        action: 'Build an image'
+        dockerFile: '**/Dockerfile'
+        imageName: '$(Build.Repository.Name):$(Build.BuildId)'
+    - task: Docker@0
+      displayName: Push an image
+      inputs:
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Visual Studio Premium with MSDN'
+        azureContainerRegistry: '{"loginServer":"spkacr.azurecr.io", "id" : "/subscriptions/1cbabf83-b4d2-45b5-b160-540a8298f25d/resourceGroups/spkwebappcontainerrg/providers/Microsoft.ContainerRegistry/registries/spkacr"}'
+        action: 'Push an image'
+        imageName: '$(Build.Repository.Name):$(Build.BuildId)'
+    - task: PublishPipelineArtifact@1
+      displayName: Publish Pipeline Artifact
+      inputs:
+        targetPath: 'devops'
+        artifact: 'devops'
+        publishLocation: 'pipeline'
+        
+- stage: Deploy
+  variables:
+  - name: ConnectedServiceName
+    value: 'Visual Studio Premium with MSDN'
+  - name: AzureSubscriptionId
+    value: '1cbabf83-b4d2-45b5-b160-540a8298f25d'
+  - name: WebAppName
+    value: 'spkwebappcontainer01'
+  - name: AzureResourceLocation
+    value: 'Central US'
+  - name: AzureResourceGroupName
+    value: 'spkwebappcontainerrg'
+  - name: DockerNamespace
+    value: 'spkacr.azurecr.io'
+  - name: DockerRepository
+    value: 'techchallengeapp'
+
+  jobs:
+  - job: deploy
+    pool:
+      vmImage: windows-latest
+
+    steps:
+    - download: none
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        buildType: 'current'
+        targetPath: '$(System.DefaultWorkingDirectory)'
+    - task: AzureResourceManagerTemplateDeployment@3
+      displayName: 'ARM Template deployment: Resource Group'
+      inputs:
+        deploymentScope: 'Resource Group'
+        azureResourceManagerConnection: '${{ variables.ConnectedServiceName }}'
+        subscriptionId: '${{ variables.AzureSubscriptionId }}'
+        action: 'Create Or Update Resource Group'
+        resourceGroupName: '${{ variables.AzureResourceGroupName }}'
+        location: '${{ variables.AzureResourceLocation }}'
+        templateLocation: 'Linked artifact'
+        csmFile: '$(System.DefaultWorkingDirectory)/devops/platform/template.json'
+        csmParametersFile: '$(System.DefaultWorkingDirectory)/devops/platform/parameter.spk.json'
+        overrideParameters: '-administratorLogin $(PG_DbUser) -administratorLoginPassword $(PG_DbPassword)'
+        deploymentMode: 'Incremental'
+
+    - task: AzureRmWebAppDeployment@4
+      displayName: 'Deploy Azure App Service'
+      inputs:
+        ConnectionType: 'AzureRM'
+        azureSubscription: '${{ variables.ConnectedServiceName }}'
+        appType: 'webAppContainer'
+        WebAppName: '${{ variables.WebAppName }}'
+        deployToSlotOrASE: true
+        ResourceGroupName: '${{ variables.AzureResourceGroupName }}'
+        SlotName: 'staging'
+        DockerNamespace: '${{ variables.DockerNamespace }}'
+        DockerRepository: '${{ variables.DockerRepository }}'
+        DockerImageTag: '$(Build.BuildId)'
+    
+    - task: AzureAppServiceManage@0
+      inputs:
+        azureSubscription: '${{ variables.ConnectedServiceName }}'
+        Action: 'Swap Slots'
+        WebAppName: '${{ variables.WebAppName }}'
+        ResourceGroupName: '${{ variables.AzureResourceGroupName }}'
+        SourceSlot: 'staging'
+...

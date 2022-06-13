@@ -1,0 +1,24 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "challengeappcontainername": {
+            "value": "spkwebappcontainer01"
+        },
+        "challengeacrname": {
+            "value": "spkacr"
+        },
+		"challengeacrrg": {
+            "value": "spkwebappcontainerrg"
+        },
+        "challengeaspname": {
+            "value": "ASP-serviantest-b735"
+        },
+		"challengelocation": {
+            "value": "Central US"
+        },
+        "challengepsqlname": {
+            "value": "spkpostgres01"
+        }
+    }
+}
