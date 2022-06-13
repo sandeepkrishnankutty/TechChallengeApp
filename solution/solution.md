@@ -32,7 +32,7 @@ Azure devops YAML pipeline (./devops/deploy/azure-pipelines.yml)
 2. Deploy the ARM template from Artifact.
 3. Deploy to Webapp for containers Staging pulling from ACR
 4. Swap Staging with production
-
+![Architecture]([Dragster.jpg](https://github.com/sandeepkrishnankutty/TechChallengeApp/blob/master/solution/azure.jpg))
 # Future Improvements of the solution
 1. Implement Azure AppService Autoscale for scaling automatically.
 2. Deploy to multiple regions for resiliency and use Azure Application Gateway/Front door for Security and loadbalancing.
